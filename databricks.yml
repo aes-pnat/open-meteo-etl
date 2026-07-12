@@ -1,0 +1,75 @@
+# Databricks Asset Bundle configuration
+# Reference: https://docs.databricks.com/en/dev-tools/bundles/index.html
+#
+# Deploy with:  databricks bundle deploy --target dev
+# Run with:     databricks bundle run open_meteo_etl_job --target dev
+
+bundle:
+  name: open-meteo-etl
+
+variables:
+  catalog:
+    default: main
+    description: Unity Catalog catalog name
+  schema_bronze:
+    default: bronze
+  schema_silver:
+    default: silver
+  schema_gold:
+    default: gold
+
+workspace:
+  # TODO: Set DATABRICKS_HOST env var or fill in your workspace URL.
+  host: ${var.databricks_host}
+
+  # TODO: Confirm the remote repo path matches where you deploy the bundle.
+  root_path: /Workspace/Repos/${workspace.current_user.userName}/${bundle.name}
+
+# TODO: Define the cluster spec to use for all job tasks.
+#       Adjust node_type_id and num_workers for your workspace tier.
+# clusters:
+#   - name: etl-cluster
+#     node_type_id: i3.xlarge
+#     num_workers: 1
+#     spark_version: "15.4.x-scala2.12"
+
+resources:
+  jobs:
+    open_meteo_etl_job:
+      name: open-meteo-etl-pipeline
+
+      # TODO: Set a schedule appropriate for your refresh cadence.
+      #       Open-Meteo provides up to 7 days of forecasts; daily runs are typical.
+      # schedule:
+      #   quartz_cron_expression: "0 0 6 * * ?"   # 06:00 UTC daily
+      #   timezone_id: UTC
+
+      tasks:
+        - task_key: extract_load
+          notebook_task:
+            notebook_path: notebooks/01_extract_load
+            # TODO: Attach the cluster defined above or use an existing cluster_id.
+          # existing_cluster_id: <your-cluster-id>
+
+        - task_key: transform_silver
+          depends_on:
+            - task_key: extract_load
+          notebook_task:
+            notebook_path: notebooks/02_transform_silver
+
+        - task_key: transform_gold
+          depends_on:
+            - task_key: transform_silver
+          notebook_task:
+            notebook_path: notebooks/03_transform_gold
+
+targets:
+  dev:
+    mode: development
+    default: true
+
+  prod:
+    mode: production
+    # TODO: Override variables for production catalog/schema names if different.
+    # variables:
+    #   catalog: prod_main

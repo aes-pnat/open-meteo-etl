@@ -1,0 +1,7 @@
+# Runtime dependencies (installed on the Databricks cluster or via %pip)
+requests>=2.31.0
+
+# Development / testing only – not needed on the cluster
+pyspark>=3.5.0   # local-mode Spark for unit tests outside Databricks
+pytest>=8.0.0
+pytest-mock>=3.12.0

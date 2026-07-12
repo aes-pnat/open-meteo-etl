@@ -4,10 +4,7 @@ from pyspark.sql import SparkSession
 def load_dim_location(spark: SparkSession) -> None:
     """
     Upsert dim_location from bronze.open_meteo.locations.
-
-    SK assignment: existing rows keep their location_sk (WHEN MATCHED only updates
-    attributes). New cities receive MAX(existing_sk) + ROW_NUMBER() so keys are
-    stable across re-runs and remain sequential as cities are added.
+    Existing rows keep their location_sk; new cities get MAX(sk) + ROW_NUMBER().
     """
     spark.sql("""
         CREATE OR REPLACE TEMP VIEW _dim_location_staging AS
@@ -46,10 +43,8 @@ def load_dim_location(spark: SparkSession) -> None:
 
 
 def load_dim_date(spark: SparkSession) -> None:
-    """
-    Upsert dim_date from the distinct dates present in silver.open_meteo.weather.
-    date_sk is YYYYMMDD as INT — deterministic, self-documenting, no sequence needed.
-    """
+    """Upsert dim_date from distinct dates in silver.open_meteo.weather.
+    date_sk = YYYYMMDD as INT — deterministic, no sequence needed."""
     spark.sql("""
         MERGE INTO gold.open_meteo.dim_date AS target
         USING (
@@ -74,11 +69,7 @@ def load_dim_date(spark: SparkSession) -> None:
 
 
 def load_dim_weather_code(spark: SparkSession) -> None:
-    """
-    Upsert dim_weather_code from bronze.open_meteo.weather_codes.
-    No surrogate key — the WMO code is a stable integer standard and is used
-    directly as the PK and as the FK in the fact table.
-    """
+    """Upsert dim_weather_code from bronze.open_meteo.weather_codes."""
     spark.sql("""
         MERGE INTO gold.open_meteo.dim_weather_code AS target
         USING bronze.open_meteo.weather_codes AS source
@@ -89,11 +80,7 @@ def load_dim_weather_code(spark: SparkSession) -> None:
 
 
 def load_fact_weather_hourly(spark: SparkSession) -> None:
-    """
-    Project Silver typed rows into the hourly Gold fact table.
-    Joins to dim_location to resolve city → location_sk.
-    MERGE key: (location_sk, date_sk, hour_of_day).
-    """
+    """Project Silver typed rows into fact_weather_hourly, resolving city → location_sk."""
     spark.sql("""
         CREATE OR REPLACE TEMP VIEW _fact_weather_hourly_staging AS
         SELECT
@@ -131,16 +118,8 @@ def load_fact_weather_hourly(spark: SparkSession) -> None:
 def load_fact_weather_daily(spark: SparkSession) -> None:
     """
     Aggregate fact_weather_hourly to daily grain and MERGE into fact_weather_daily.
-    Source is the Gold hourly fact — not Silver — so both fact tables are always
-    consistent with each other.
-
-    Derived measures:
-      temperature_range  = max_temperature_2m - min_temperature_2m
-      daylight_hours     = SUM(is_day)  [is_day is 1 per daytime hour, 0 at night]
-
-    weather_code uses MODE() — most frequent hourly code for the day.
-    avg_winddirection_10m is an arithmetic mean; a circular mean would be more
-    accurate for compass degrees but is sufficient for reporting purposes.
+    Derived: temperature_range = max - min; daylight_hours = SUM(is_day).
+    avg_winddirection_10m is an arithmetic mean.
     """
     spark.sql("""
         CREATE OR REPLACE TEMP VIEW _fact_weather_daily_staging AS
@@ -178,11 +157,8 @@ def load_fact_weather_daily(spark: SparkSession) -> None:
 
 
 def transform_silver_to_gold(spark: SparkSession) -> tuple[int, int]:
-    """
-    Load all Gold tables in dependency order: dimensions first, hourly fact second,
-    daily fact last (derived from hourly).
-    Returns (hourly_row_count, daily_row_count).
-    """
+    """Load all Gold tables: dims → hourly fact → daily fact.
+    Returns (hourly_row_count, daily_row_count)."""
     load_dim_location(spark)
     load_dim_date(spark)
     load_dim_weather_code(spark)

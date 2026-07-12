@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 FORECAST_ENDPOINT = "https://api.open-meteo.com/v1/forecast"
 
-# Keeping snow/showers/snow_depth for all locations — edge-case weather should be recorded.
 HOURLY_VARIABLES = [
     "temperature_2m",
     "apparent_temperature",
@@ -38,9 +37,6 @@ _BRONZE_SCHEMA = StructType([
 ])
 
 
-# ---------------------------------------------------------------------------
-# Pure HTTP fetch functions — no Spark dependency, easy to unit-test
-# ---------------------------------------------------------------------------
 
 def fetch_weather(location: Location) -> dict:
     """
@@ -64,9 +60,6 @@ def fetch_weather(location: Location) -> dict:
     return payload
 
 
-# ---------------------------------------------------------------------------
-# Spark ingestion functions — fetch + write to Bronze Delta table
-# ---------------------------------------------------------------------------
 
 def ingest_forecast(
     spark: SparkSession,

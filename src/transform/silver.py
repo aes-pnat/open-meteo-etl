@@ -24,17 +24,9 @@ _PAYLOAD_SCHEMA_DDL = (
 
 def transform_bronze_to_silver(spark: SparkSession) -> int:
     """
-    Read Bronze, parse JSON hourly arrays into typed rows, and MERGE into
+    Parse Bronze JSON payloads into typed hourly rows and MERGE into
     silver.open_meteo.weather on (city, forecast_time).
-
-    CTE breakdown:
-      bronze_parsed  — from_json() to typed struct; QUALIFY deduplicates Bronze
-                       re-runs on row_hash (same payload hash = same content)
-      bronze_arrays  — lifts each hourly array to a named top-level column so
-                       that arrays_zip() produces clean struct field names
-      exploded       — arrays_zip() + explode() → one row per hourly time step
-
-    Returns the total row count in silver.open_meteo.weather after the merge.
+    Returns total row count after the merge.
     """
     spark.sql(f"""
         CREATE OR REPLACE TEMP VIEW _silver_staging AS

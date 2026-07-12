@@ -1,14 +1,10 @@
 # Databricks notebook source
 
-# COMMAND ----------
 # MAGIC %md
 # MAGIC # Bronze — Extract & Load
 # MAGIC Runs daily. Fetches the 14-day hourly forecast from Open-Meteo for all
 # MAGIC 23 locations and lands raw JSON in `bronze.open_meteo.raw_weather`.
 # MAGIC Location seed data is upserted into `bronze.open_meteo.locations`.
-
-# COMMAND ----------
-# MAGIC %pip install requests
 
 # COMMAND ----------
 
@@ -35,7 +31,8 @@ spark.sql("""
         city             STRING    NOT NULL  COMMENT 'Location name from LOCATIONS',
         raw_payload      STRING    NOT NULL  COMMENT 'Full API response JSON, unparsed',
         ingested_at      TIMESTAMP NOT NULL  COMMENT 'UTC timestamp of the API call',
-        pipeline_run_id  STRING    NOT NULL  COMMENT 'UUID linking all rows from one run'
+        pipeline_run_id  STRING    NOT NULL  COMMENT 'UUID linking all rows from one run',
+        row_hash         BIGINT    NOT NULL  COMMENT 'xxHash64 of raw_payload — use for deduplication'
     )
     USING DELTA
     COMMENT 'Raw Open-Meteo 14-day hourly forecast JSON — Bronze landing layer'

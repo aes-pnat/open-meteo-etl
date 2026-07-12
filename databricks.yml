@@ -14,18 +14,14 @@
 bundle:
   name: open-meteo-etl
 
-variables:
-  workspace_host:
-    default: https://dbc-bcdd869f-1671.cloud.databricks.com//
-
 targets:
   dev:
     default: true
     workspace:
-      host: ${var.workspace_host}
+      host: https://dbc-bcdd869f-1671.cloud.databricks.com
   prod:
     workspace:
-      host: ${var.workspace_host}
+      host: https://dbc-bcdd869f-1671.cloud.databricks.com
 
 resources:
   jobs:

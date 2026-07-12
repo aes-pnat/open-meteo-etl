@@ -1,6 +1,6 @@
 # open-meteo-etl
 
-Weather data pipeline for Museum of Illusions — pulls hourly forecasts from the Open-Meteo API for all 23 corporate locations, processes them through a medallion architecture on Databricks, and outputs a star schema ready for Power BI reporting.
+Weather data pipeline that pulls hourly forecasts from the Open-Meteo API for 23 corporate locations, processes them through a medallion architecture on Databricks, and outputs a star schema ready for Power BI reporting.
 
 > **Workspace access:** To explore the live Databricks workspace, browse the Delta tables, or review the Power BI report, please reach out and I will provide access credentials.
 
@@ -8,7 +8,7 @@ Weather data pipeline for Museum of Illusions — pulls hourly forecasts from th
 
 ## What it does
 
-1. **Extracts** 14-day hourly weather forecasts from the free [Open-Meteo API](https://open-meteo.com/en/docs) for all 23 locations (Atlanta, Chicago, London, Sydney, and 19 others).
+1. **Extracts** 14-day hourly weather forecasts from the free [Open-Meteo API](https://open-meteo.com/en/docs) for all 23 locations.
 2. **Lands** the raw API responses as-is into a Bronze Delta table — nothing is parsed or transformed at this stage.
 3. **Transforms** the raw JSON into clean, typed, one-row-per-hour records in Silver.
 4. **Aggregates** the Silver data into a star schema in Gold, with both hourly and daily fact tables and three dimension tables.
@@ -96,14 +96,14 @@ All tables use MERGE on their natural keys so the pipeline is safe to re-run.
 
 ## Technology choices
 
-| What | Why |
-|---|---|
-| **Databricks + Delta Lake** | Familiar environment; Unity Catalog gives clean catalog/schema/table hierarchy; Delta's MERGE handles idempotent upserts natively |
-| **Medallion architecture** | Separates raw landing (Bronze) from cleaning (Silver) from modelling (Gold) — each layer is independently queryable and reusable |
-| **Spark SQL over DataFrame API** | Transformations are expressed as plain SQL CTEs, making them readable without PySpark knowledge |
-| **Open-Meteo** | Free, no auth required, reliable hourly forecast data with a clean JSON structure |
-| **Databricks Asset Bundles** | Version-controlled job definition; `git_source` means notebooks are always fetched from the latest GitHub commit — no manual sync |
-| **GitHub Actions** | Keeps the Databricks job definition up to date automatically on every push |
+| What                             | Why                                                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Databricks + Delta Lake**      | Familiar environment; Unity Catalog gives clean catalog/schema/table hierarchy; Delta's MERGE handles idempotent upserts natively |
+| **Medallion architecture**       | Separates raw landing (Bronze) from cleaning (Silver) from modelling (Gold) — each layer is independently queryable and reusable  |
+| **Spark SQL over DataFrame API** | Transformations are expressed as plain SQL CTEs, making them readable without PySpark knowledge                                   |
+| **Open-Meteo**                   | Free, no auth required, reliable hourly forecast data with a clean JSON structure                                                 |
+| **Databricks Asset Bundles**     | Version-controlled job definition; `git_source` means notebooks are always fetched from the latest GitHub commit — no manual sync |
+| **GitHub Actions**               | Keeps the Databricks job definition up to date automatically on every push                                                        |
 
 ---
 

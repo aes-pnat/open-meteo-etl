@@ -34,8 +34,7 @@ spark.sql("""
         raw_payload      STRING    NOT NULL  COMMENT 'Full API response JSON, unparsed',
         ingested_at      TIMESTAMP NOT NULL  COMMENT 'UTC timestamp of the API call',
         pipeline_run_id  STRING    NOT NULL  COMMENT 'UUID linking all rows from one run',
-        row_hash         BIGINT    GENERATED ALWAYS AS (xxhash64(raw_payload))
-                                             COMMENT 'xxHash64 of raw_payload — use for deduplication'
+        row_hash         BIGINT    NOT NULL  COMMENT 'xxHash64 of raw_payload — use for deduplication'
     )
     USING DELTA
     COMMENT 'Raw Open-Meteo 14-day hourly forecast JSON — Bronze landing layer'

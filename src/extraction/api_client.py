@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 
 import requests
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, functions as F
 from pyspark.sql.types import StringType, StructField, StructType, TimestampType
 
 from src.locations import Location, LOCATIONS
@@ -89,12 +89,8 @@ def ingest_forecast(
         return 0
 
     df = spark.createDataFrame(rows, schema=_BRONZE_SCHEMA)
-    df.createOrReplaceTempView("_raw_weather_staging")
-    spark.sql(f"""
-        INSERT INTO {table} (city, raw_payload, ingested_at, pipeline_run_id)
-        SELECT city, raw_payload, ingested_at, pipeline_run_id
-        FROM _raw_weather_staging
-    """)
+    df = df.withColumn("row_hash", F.xxhash64("raw_payload"))
+    df.write.format("delta").mode("append").saveAsTable(table)
 
     logger.info("Wrote %d forecast rows to %s", len(rows), table)
     return len(rows)

@@ -5,6 +5,7 @@
 # MAGIC Runs daily. Fetches the 14-day hourly forecast from Open-Meteo for all
 # MAGIC 23 locations and lands raw JSON in `bronze.open_meteo.raw_weather`.
 # MAGIC Location seed data is upserted into `bronze.open_meteo.locations`.
+# MAGIC WMO weather code reference data is upserted into `bronze.open_meteo.weather_codes`.
 
 # COMMAND ----------
 
@@ -13,6 +14,7 @@ from datetime import datetime, timezone
 
 from src.extraction.api_client import ingest_forecast
 from src.locations import LOCATIONS
+from src.weather_codes import WEATHER_CODES
 
 # Single UUID ties every row written in this execution together for lineage.
 pipeline_run_id = str(uuid.uuid4())
@@ -52,6 +54,15 @@ spark.sql("""
     COMMENT 'Location reference seed — sourced from src/locations.py'
 """)
 
+spark.sql("""
+    CREATE TABLE IF NOT EXISTS bronze.open_meteo.weather_codes (
+        weather_code  INT     NOT NULL  COMMENT 'WMO weather interpretation code',
+        description   STRING  NOT NULL  COMMENT 'Human-readable weather description'
+    )
+    USING DELTA
+    COMMENT 'WMO weather code reference — static seed data; sourced from src/weather_codes.py'
+""")
+
 # COMMAND ----------
 # MAGIC %md ## 2. Upsert location seed data
 
@@ -81,7 +92,30 @@ spark.sql("""
 print(f"Locations upserted: {len(location_rows)}")
 
 # COMMAND ----------
-# MAGIC %md ## 3. Ingest forecast data
+# MAGIC %md ## 3. Upsert weather code reference data
+
+# COMMAND ----------
+
+weather_code_rows = [(wc.code, wc.description) for wc in WEATHER_CODES]
+
+(
+    spark
+    .createDataFrame(weather_code_rows, schema=["weather_code", "description"])
+    .createOrReplaceTempView("_weather_code_staging")
+)
+
+spark.sql("""
+    MERGE INTO bronze.open_meteo.weather_codes AS target
+    USING _weather_code_staging AS source
+      ON target.weather_code = source.weather_code
+    WHEN MATCHED THEN UPDATE SET *
+    WHEN NOT MATCHED THEN INSERT *
+""")
+
+print(f"Weather codes upserted: {len(weather_code_rows)}")
+
+# COMMAND ----------
+# MAGIC %md ## 4. Ingest forecast data
 
 # COMMAND ----------
 
@@ -96,7 +130,7 @@ if rows_written < len(LOCATIONS):
     )
 
 # COMMAND ----------
-# MAGIC %md ## 4. Validation
+# MAGIC %md ## 5. Validation
 
 # COMMAND ----------
 

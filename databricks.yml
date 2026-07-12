@@ -1,42 +1,61 @@
 # Databricks Asset Bundle configuration
 # Reference: https://docs.databricks.com/en/dev-tools/bundles/index.html
 #
-# Deploy: databricks bundle deploy --target dev
-# Run:    databricks bundle run open_meteo_etl_job --target dev
-# Auth:   set DATABRICKS_HOST and DATABRICKS_TOKEN env vars (or use ~/.databrickscfg)
+# Prerequisites:
+#   1. Install Databricks CLI (v0.200+): https://docs.databricks.com/dev-tools/cli/install.html
+#   2. Authenticate: databricks configure --token
+#
+# Deploy: databricks bundle deploy
+# Run:    databricks bundle run open_meteo_etl_job
+#
+# Notebooks are fetched from GitHub at runtime via git_source, so pushed commits
+# are picked up on the next job run without re-deploying.
 
 bundle:
   name: open-meteo-etl
 
-workspace:
-  root_path: /Workspace/Repos/${workspace.current_user.userName}/${bundle.name}
+variables:
+  workspace_host:
+    default: https://dbc-bcdd869f-1671.cloud.databricks.com//
+
+targets:
+  dev:
+    default: true
+    workspace:
+      host: ${var.workspace_host}
+  prod:
+    workspace:
+      host: ${var.workspace_host}
 
 resources:
   jobs:
     open_meteo_etl_job:
-      name: open-meteo-etl-pipeline
+      name: "[${bundle.target}] open-meteo-etl"
+
+      git_source:
+        git_url: https://github.com/aes-pnat/open-meteo-etl
+        git_provider: gitHub
+        git_branch: main
 
       tasks:
         - task_key: extract_load
+          description: Fetch Open-Meteo forecast for all 23 locations and land raw JSON in Bronze
           notebook_task:
             notebook_path: notebooks/01_extract_load
+            source: GIT
 
         - task_key: transform_silver
+          description: Parse Bronze JSON into typed hourly rows in Silver
           depends_on:
             - task_key: extract_load
           notebook_task:
             notebook_path: notebooks/02_transform_silver
+            source: GIT
 
         - task_key: transform_gold
+          description: Build star schema — dim_location, dim_date, dim_weather_code, fact_weather_hourly, fact_weather_daily
           depends_on:
             - task_key: transform_silver
           notebook_task:
             notebook_path: notebooks/03_transform_gold
-
-targets:
-  dev:
-    mode: development
-    default: true
-
-  prod:
-    mode: production
+            source: GIT

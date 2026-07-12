@@ -89,7 +89,12 @@ def ingest_forecast(
         return 0
 
     df = spark.createDataFrame(rows, schema=_BRONZE_SCHEMA)
-    df.write.format("delta").mode("append").saveAsTable(table)
+    df.createOrReplaceTempView("_raw_weather_staging")
+    spark.sql(f"""
+        INSERT INTO {table} (city, raw_payload, ingested_at, pipeline_run_id)
+        SELECT city, raw_payload, ingested_at, pipeline_run_id
+        FROM _raw_weather_staging
+    """)
 
     logger.info("Wrote %d forecast rows to %s", len(rows), table)
     return len(rows)

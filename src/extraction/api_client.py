@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 import requests
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType, TimestampType
 
 from src.locations import Location, LOCATIONS
@@ -101,7 +100,6 @@ def ingest_forecast(
         return 0
 
     df = spark.createDataFrame(rows, schema=_BRONZE_SCHEMA)
-    df = df.withColumn("row_hash", F.xxhash64(F.col("raw_payload")))
     df.write.format("delta").mode("append").saveAsTable(table)
 
     logger.info("Wrote %d forecast rows to %s", len(rows), table)

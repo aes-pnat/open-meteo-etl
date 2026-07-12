@@ -156,14 +156,111 @@ def load_fact_weather_daily(spark: SparkSession) -> None:
     """)
 
 
+def load_fact_weather_hourly_enriched(spark: SparkSession) -> None:
+    """Denormalized hourly fact — all dim columns pre-joined for direct BI consumption."""
+    spark.sql("""
+        MERGE INTO gold.open_meteo.fact_weather_hourly_enriched AS target
+        USING (
+            SELECT
+                l.city,
+                l.latitude,
+                l.longitude,
+                l.timezone,
+                d.date,
+                d.year,
+                d.quarter,
+                d.month,
+                d.month_name,
+                d.day_of_month,
+                d.day_of_week,
+                d.day_name,
+                d.week_of_year,
+                d.is_weekend,
+                f.hour_of_day,
+                w.description               AS weather_description,
+                f.temperature_2m,
+                f.apparent_temperature,
+                f.relative_humidity_2m,
+                f.cloud_cover,
+                f.windspeed_10m,
+                f.winddirection_10m,
+                f.precipitation,
+                f.snowfall,
+                f.precipitation_probability,
+                f.rain,
+                f.visibility,
+                f.is_day
+            FROM gold.open_meteo.fact_weather_hourly f
+            JOIN gold.open_meteo.dim_location     l ON l.location_sk  = f.location_sk
+            JOIN gold.open_meteo.dim_date         d ON d.date_sk      = f.date_sk
+            JOIN gold.open_meteo.dim_weather_code w ON w.weather_code = f.weather_code
+        ) AS source
+        ON  target.city        = source.city
+        AND target.date        = source.date
+        AND target.hour_of_day = source.hour_of_day
+        WHEN MATCHED     THEN UPDATE SET *
+        WHEN NOT MATCHED THEN INSERT *
+    """)
+
+
+def load_fact_weather_daily_enriched(spark: SparkSession) -> None:
+    """Denormalized daily fact — all dim columns pre-joined for direct BI consumption."""
+    spark.sql("""
+        MERGE INTO gold.open_meteo.fact_weather_daily_enriched AS target
+        USING (
+            SELECT
+                l.city,
+                l.latitude,
+                l.longitude,
+                l.timezone,
+                d.date,
+                d.year,
+                d.quarter,
+                d.month,
+                d.month_name,
+                d.day_of_month,
+                d.day_of_week,
+                d.day_name,
+                d.week_of_year,
+                d.is_weekend,
+                w.description               AS weather_description,
+                f.avg_temperature_2m,
+                f.min_temperature_2m,
+                f.max_temperature_2m,
+                f.temperature_range,
+                f.avg_apparent_temperature,
+                f.avg_relative_humidity_2m,
+                f.avg_cloud_cover,
+                f.avg_windspeed_10m,
+                f.avg_winddirection_10m,
+                f.total_precipitation,
+                f.total_snowfall,
+                f.total_rain,
+                f.avg_precipitation_probability,
+                f.avg_visibility,
+                f.daylight_hours
+            FROM gold.open_meteo.fact_weather_daily f
+            JOIN gold.open_meteo.dim_location     l ON l.location_sk  = f.location_sk
+            JOIN gold.open_meteo.dim_date         d ON d.date_sk      = f.date_sk
+            JOIN gold.open_meteo.dim_weather_code w ON w.weather_code = f.weather_code
+        ) AS source
+        ON  target.city = source.city
+        AND target.date = source.date
+        WHEN MATCHED     THEN UPDATE SET *
+        WHEN NOT MATCHED THEN INSERT *
+    """)
+
+
 def transform_silver_to_gold(spark: SparkSession) -> tuple[int, int]:
-    """Load all Gold tables: dims → hourly fact → daily fact.
+    """Load all Gold tables: dims → hourly fact → daily fact → enriched views.
     Returns (hourly_row_count, daily_row_count)."""
     load_dim_location(spark)
     load_dim_date(spark)
     load_dim_weather_code(spark)
     load_fact_weather_hourly(spark)
     load_fact_weather_daily(spark)
+    load_fact_weather_hourly_enriched(spark)
+    load_fact_weather_daily_enriched(spark)
     hourly = spark.sql("SELECT COUNT(*) FROM gold.open_meteo.fact_weather_hourly").collect()[0][0]
     daily  = spark.sql("SELECT COUNT(*) FROM gold.open_meteo.fact_weather_daily").collect()[0][0]
     return hourly, daily

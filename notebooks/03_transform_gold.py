@@ -108,6 +108,78 @@ spark.sql("""
     COMMENT 'Daily weather fact — grain: (location_sk, date_sk); aggregated from Silver hourly rows'
 """)
 
+spark.sql("""
+    CREATE TABLE IF NOT EXISTS gold.open_meteo.fact_weather_hourly_enriched (
+        city                          STRING  NOT NULL  COMMENT 'Natural key from dim_location',
+        latitude                      DOUBLE  NOT NULL,
+        longitude                     DOUBLE  NOT NULL,
+        timezone                      STRING  NOT NULL,
+        date                          DATE    NOT NULL,
+        year                          INT     NOT NULL,
+        quarter                       INT     NOT NULL,
+        month                         INT     NOT NULL,
+        month_name                    STRING  NOT NULL,
+        day_of_month                  INT     NOT NULL,
+        day_of_week                   INT     NOT NULL  COMMENT '1 = Sunday … 7 = Saturday',
+        day_name                      STRING  NOT NULL,
+        week_of_year                  INT     NOT NULL,
+        is_weekend                    BOOLEAN NOT NULL,
+        hour_of_day                   INT     NOT NULL,
+        weather_description           STRING  NOT NULL,
+        temperature_2m                DOUBLE            COMMENT 'Air temperature at 2 m (°C)',
+        apparent_temperature          DOUBLE            COMMENT 'Apparent (feels-like) temperature (°C)',
+        relative_humidity_2m          INT               COMMENT 'Relative humidity at 2 m (%)',
+        cloud_cover                   INT               COMMENT 'Total cloud cover (%)',
+        windspeed_10m                 DOUBLE            COMMENT 'Wind speed at 10 m (km/h)',
+        winddirection_10m             INT               COMMENT 'Wind direction at 10 m (°)',
+        precipitation                 DOUBLE            COMMENT 'Precipitation (mm)',
+        snowfall                      DOUBLE            COMMENT 'Snowfall (cm)',
+        precipitation_probability     INT               COMMENT 'Precipitation probability (%)',
+        rain                          DOUBLE            COMMENT 'Rain (mm)',
+        visibility                    DOUBLE            COMMENT 'Visibility (m)',
+        is_day                        INT               COMMENT '1 = daytime, 0 = night'
+    )
+    USING DELTA
+    COMMENT 'Enriched hourly fact — grain: (city, date, hour_of_day); dim columns pre-joined for direct BI consumption'
+""")
+
+spark.sql("""
+    CREATE TABLE IF NOT EXISTS gold.open_meteo.fact_weather_daily_enriched (
+        city                          STRING  NOT NULL  COMMENT 'Natural key from dim_location',
+        latitude                      DOUBLE  NOT NULL,
+        longitude                     DOUBLE  NOT NULL,
+        timezone                      STRING  NOT NULL,
+        date                          DATE    NOT NULL,
+        year                          INT     NOT NULL,
+        quarter                       INT     NOT NULL,
+        month                         INT     NOT NULL,
+        month_name                    STRING  NOT NULL,
+        day_of_month                  INT     NOT NULL,
+        day_of_week                   INT     NOT NULL  COMMENT '1 = Sunday … 7 = Saturday',
+        day_name                      STRING  NOT NULL,
+        week_of_year                  INT     NOT NULL,
+        is_weekend                    BOOLEAN NOT NULL,
+        weather_description           STRING  NOT NULL,
+        avg_temperature_2m            DOUBLE            COMMENT 'Mean hourly temperature (°C)',
+        min_temperature_2m            DOUBLE            COMMENT 'Minimum hourly temperature (°C)',
+        max_temperature_2m            DOUBLE            COMMENT 'Maximum hourly temperature (°C)',
+        temperature_range             DOUBLE            COMMENT 'Derived: max − min temperature (°C)',
+        avg_apparent_temperature      DOUBLE            COMMENT 'Mean feels-like temperature (°C)',
+        avg_relative_humidity_2m      DOUBLE            COMMENT 'Mean relative humidity (%)',
+        avg_cloud_cover               DOUBLE            COMMENT 'Mean cloud cover (%)',
+        avg_windspeed_10m             DOUBLE            COMMENT 'Mean wind speed (km/h)',
+        avg_winddirection_10m         DOUBLE            COMMENT 'Mean wind direction (°)',
+        total_precipitation           DOUBLE            COMMENT 'Total precipitation (mm)',
+        total_snowfall                DOUBLE            COMMENT 'Total snowfall (cm)',
+        total_rain                    DOUBLE            COMMENT 'Total rain (mm)',
+        avg_precipitation_probability DOUBLE            COMMENT 'Mean precipitation probability (%)',
+        avg_visibility                DOUBLE            COMMENT 'Mean visibility (m)',
+        daylight_hours                DOUBLE            COMMENT 'Count of daytime hours'
+    )
+    USING DELTA
+    COMMENT 'Enriched daily fact — grain: (city, date); dim columns pre-joined for direct BI consumption'
+""")
+
 # COMMAND ----------
 # MAGIC %md ## 2. Load dimensions and fact
 

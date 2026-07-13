@@ -1,8 +1,12 @@
 # open-meteo-etl
 
-Weather data pipeline that pulls hourly forecasts from the Open-Meteo API for 23 corporate locations, processes them through a medallion architecture on Databricks, and outputs a star schema ready for Power BI reporting.
+Weather data pipeline that pulls hourly forecasts from the Open-Meteo API for 23 corporate locations, processes them through a medallion architecture on Databricks, and outputs a star schema surfaced in a Databricks Lakeview dashboard.
 
-> **Workspace access:** To explore the live Databricks workspace, browse the Delta tables, or review the Power BI report, please reach out and I will provide access credentials.
+> **Workspace access:** To explore the live Databricks workspace or browse the Delta tables directly, please reach out and I will provide access credentials.
+
+## Dashboard
+
+[View the live Lakeview dashboard](https://dbc-bcdd869f-1671.cloud.databricks.com/dashboardsv3/01f17e4a5d361c5987baeb0d5728125e/published?o=7474651388183305) *(requires a Databricks account — contact me for access)*
 
 ---
 
